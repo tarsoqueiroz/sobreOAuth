@@ -47,23 +47,23 @@ The OAuth 2.0 Core Framework (RFC 6749) defines roles and a base level of functi
 
 ## Terminologia
 
-Regras:
+**Regras:**
 
-- Resource owner: o usuário dono dos dados (ex.: sua conta do Google).
-- User agent: o dispositivo
-- Client: a aplicação que quer acessar os dados (ex.: um app terceiro).
-  - Confidential clients (no servidor): tem as credenciais
-  - Public clients (browser web ou aplicativos móveis): não tem as credenciais
-- Resource server: servidor que armazena os dados protegidos (ex.: API do Google Drive).
-- Authorization server: servidor que valida o usuário e emite tokens (ex.: login do Google).
+- **Resource owner**: o usuário dono dos dados (ex.: sua conta do Google).
+- **User agent**: o dispositivo
+- **Client**: a aplicação que quer acessar os dados (ex.: um app terceiro).
+  - **Confidential clients (no servidor)**: tem as credenciais
+  - **Public clients (browser web ou aplicativos móveis)**: não tem as credenciais
+- **Resource server**: servidor que armazena os dados protegidos (ex.: API do Google Drive).
+- **Authorization server**: servidor que valida o usuário e emite tokens (ex.: login do Google).
 
-Tokens:
+**Tokens:**
 
-- Authorization code: `client_secret` armazenado por um back-end seguro.
-- Access token: "chave" temporária que o Client usa para acessar o Resource Server.
-- Refresh token: token usado para obter novos Access Tokens sem pedir permissão novamente ao usuário.
+- **Authorization code**: `client_secret` armazenado por um back-end seguro.
+- **Access token**: "chave" temporária que o Client usa para acessar o Resource Server.
+- **Refresh token**: token usado para obter novos Access Tokens sem pedir permissão novamente ao usuário.
 
-Grant types (a.k.a. Grant flows / Authorization flows / Fluxos):
+**Grant types (a.k.a. Grant flows / Authorization flows / Fluxos):**
 
 - **Authorization Code** (mais comum)
   - Client redireciona o usuário para o AS (ex.: tela de login do Google).
@@ -88,7 +88,7 @@ Grant types (a.k.a. Grant flows / Authorization flows / Fluxos):
   - Aplicações legadas ou de alta confiança (ex.: app oficial do próprio provedor de serviço).
   - Não recomendado para clientes públicos (vazamento de senhas).
 
-Scopes e Permissões:
+**Scopes e Permissões:**
 
 - Scopes definem quais permissões o Client pede (ex.: read:contacts, write:files).
 - O usuário deve consentir explicitamente com esses scopes durante a autorização.
@@ -96,13 +96,551 @@ Scopes e Permissões:
 
 ## Front Channel vs. Back Channel
 
-...
+Estes termos referem-se aos **canais de comunicação** usados durante os fluxos do OAuth 2.0, diferenciados por segurança e participantes:
+
+| Característica   | Front Channel | Back Channel |
+| :--------------- | :------------ | :----------- |
+| **Local**            | Navegador do usuário (User Agent) | Comunicação direta entre servidores |
+| **Segurança**        | Menos seguro (dados expostos)     | Mais seguro (dados criptografados)  |
+| **Exemplo**          | Redirecionamentos HTTP            | Chamadas API server-to-server       |
+| **Dados sensíveis?** | Nunca tokens completos            | Tokens, client_secret, credenciais  |
+
+### Front Channel (Canal Frontal)
+
+**O que é?**
+
+- Comunicação que passa pelo **navegador do usuário** (User Agent).
+- **Não é seguro** para dados sensíveis, pois URLs/parâmetros podem ser vazados (histórico do navegador, logs de rede).
+
+**Quando ocorre?**
+
+Durante a fase de autorização do OAuth:
+
+- O Client (ex.: app web) redireciona o usuário para o Authorization Server (AS) via URL:
+
+```sh
+<https://auth-server.com/authorize>?
+  response_type=code&
+  client_id=123&
+  redirect_uri=<https://client.com/callback&>
+  scope=email
+```
+
+- O AS retorna o código de autorização (ou erro) para o `redirect_uri` via navegador:
+
+```sh
+https://client.com/callback?code=ABC123
+```
+
+**Riscos e Mitigações:**
+
+- **Exposição de dados:** O código de autorização (`code`) pode ser interceptado.
+  - **Solução:** Use PKCE (`code_challenge`) para vincular o código à requisição original.
+- **Ataques CSRF:** O parâmetro `state` prevê falsificação de redirecionamento.
+
+### Back Channel (Canal Traseiro)
+
+**O que é?**
+
+- Comunicação **direta entre servidores** (Client → Authorization Server ou Client → Resource Server).
+- **Seguro:** Usa HTTPS com autenticação mútua (ex.: `client_secret`).
+
+**Quando ocorre?**
+
+Durante a **troca de tokens**:
+
+- O Client envia o `code` (obtido no Front Channel) + `client_secret` para o AS:
+
+```sh
+POST /token HTTP/1.1
+Host: auth-server.com
+Body:
+  grant_type=authorization_code&
+  code=ABC123&
+  client_id=123&
+  client_secret=SEGREDO&
+  redirect_uri=https://client.com/callback
+```
+
+- O AS responde com o `access_token` diretamente ao Client (sem passar pelo navegador).
+
+**Por que é seguro?**
+
+- O `client_secret` nunca é exposto no Front Channel.
+- Tokens são transmitidos via HTTPS com autenticação.
+
+### Exemplo Prático (Fluxo Authorization Code)
+
+- Front Channel:
+  - Usuário é redirecionado para o AS via navegador.
+  - AS devolve o `code` para o `redirect_uri` (no navegador).
+- Back Channel:
+  - O Client (back-end) troca o `code` por um `access_token` diretamente com o AS.
+  - O Client usa o `access_token` para chamar a API do Resource Server (sem navegador).
+
+### Comparação em Cenários Reais
+
+| Fluxo OAuth | Front Channel | Back Channel |
+| :---------- | :------------ | :----------- |
+| Authorization Code | Troca de `code` via navegador      | Troca `code` → `token` (server-side)   |
+| Implicit           | Token retornado via URL (inseguro) | Não usa Back Channel                   |
+| Client Credentials | Não usa Front Channel              | Autenticação direta (server-to-server) |
 
 ## Boas Práticas e Segurança
 
-- Nunca armazene tokens no front-end (localStorage/sessionStorage).
-- Use HTTPS em todas as etapas.
-- Para SPAs/mobile, prefira PKCE.
-- Valide sempre os scopes no Resource Server.
-- Short-lived Access Tokens + Refresh Tokens são a melhor prática.
+- **Use HTTPS** em todas as etapas.
+- **Nunca envie ou armazene** tokens sensíveis (`access_token`, `refresh_token`, `client_secret`) no Front Channel (localStorage/sessionStorage).
+- **Use PKCE** para fluxos com clientes públicos (SPAs/mobile).
+- **Valide sempre** os scopes no Resource Server.
+- **Valide sempre** `redirect_uri` no AS para evitar ataques de redirecionamento.
+- **Short-lived Access Tokens + Refresh Tokens** são a melhor prática.
 
+## OAuth 2.0 para Server-Side Applications (Web Apps)
+
+Fluxo Authorization Code, este é o fluxo mais seguro para aplicações web com back-end, onde o client_secret pode ser armazenado com segurança.
+
+Segue um passo a passo detalhado:
+
+### Personagens do Fluxo Authorization Code
+
+- **User (Resource Owner)**: Dono dos dados (ex.: usuário do GitHub).
+- **Web App (Client)**: Sua aplicação com back-end (ex.: app em Node.js/Django).
+- **Authorization Server (AS)**: Serviço que gerencia autorização (ex.: GitHub, Google).
+- **Resource Server (RS)**: API que guarda os dados (ex.: API do GitHub).
+
+### Registro do Client para o Fluxo Authorization Code
+
+Pré-requisito para começar, registre sua aplicação no AS (ex.: [GitHub OAuth Apps](https://github.com/settings/applications/new)) para obter:
+
+- `client_id` → Identificador público.
+- `client_secret` → Chave secreta (só back-end conhece).
+- `redirect_uri` → URL de callback (ex.: `https://seusite.com/oauth/callback`).
+
+### Fluxo de Autorização (Front Channel)
+
+**Passo 1:** Iniciar o fluxo
+
+Sua aplicação redireciona o usuário para o AS com um link contendo:
+
+```bash
+https://auth-server.com/authorize?
+  response_type=code&
+  client_id=SEU_CLIENT_ID&
+  redirect_uri=https://seusite.com/callback&
+  scope=user:email&
+  state=ABC123xyz
+```
+
+Parâmetros Chave:
+
+- `response_type=code`: Solicita um código de autorização.
+- `state`: Token CSRF para prevenir ataques (gerado aleatoriamente).
+- `scope`: Permissões solicitadas (ex.: acessar email do usuário).
+
+**Passo 2:** Usuário autoriza
+
+O AS exibe uma tela de login e pede consentimento ("Aplicação X quer acessar seus dados").
+
+Se o usuário aprovar, o AS redireciona para o redirect_uri com um código temporário:
+
+```bash
+https://seusite.com/callback?
+  code=XYZ789abc&
+  state=ABC123xyz
+```
+
+### Troca do Código por Token (Back Channel)
+
+**Passo 3:** Back-end solicita o Access Token
+
+Seu servidor faz uma chamada **diretamente ao AS** (sem passar pelo navegador):
+
+```bash
+POST https://auth-server.com/token
+Headers:
+  Content-Type: application/x-www-form-urlencoded
+Body:
+  client_id=SEU_CLIENT_ID&
+  client_secret=SEU_CLIENT_SECRET&
+  code=XYZ789abc&
+  grant_type=authorization_code&
+  redirect_uri=https://seusite.com/callback
+```
+
+**Passo 4:** AS retorna os Tokens
+
+Resposta do AS (`JSON`):
+
+```json
+{
+  "access_token": "abc123xyz",
+  "token_type": "Bearer",
+  "expires_in": 3600,
+  "refresh_token": "def456uvw",
+  "scope": "user:email"
+}
+```
+
+### Acesso ao Resource Server (API)
+
+**Passo 5:** Usar o Access Token
+
+Seu back-end pode agora acessar os dados protegidos:
+
+```bash
+GET https://api.resource-server.com/user
+Headers:
+  Authorization: Bearer abc123xyz
+```
+
+### Diagrama
+
+![Fluxo Authorization Code](./imagens/Fluxo-Authorization_Code.png)
+
+### Por que este Fluxo é Seguro?
+
+- O `client_secret` nunca é exposto no navegador (só no back-end).
+- O `access_token` é obtido via Back Channel (HTTPS direto entre servidores).
+- O código (`code`) é de uso único e curta duração (mesmo se interceptado, sem `client_secret` é inútil).
+
+### Boas Práticas
+
+- **Sempre valide** o `state` no callback para **evitar CSRF**.
+- **Use HTTPS** em todas as etapas.
+- **Armazene** `client_secret` **com segurança** (ex.: variáveis de ambiente, serviços como AWS Secrets Manager).
+- **Para SPAs**, substitua `client_secret` por PKCE (mas ainda use Authorization Code).
+
+## OAuth 2.0 para Client-Side Applications (SPAs/Mobile)
+
+Fluxo Authorization Code com PKCE tem como objetivo a segurança reforçada para clientes públicos (sem `client_secret`), como SPAs (React, Angular) ou apps móveis (Android/iOS).
+
+Passo a Passo do Authorization Code + PKCE:
+
+### Personagens do Fluxo Authorization Code com PKCE
+
+- **User (Resource Owner)**: Dono dos dados.
+- **Client-Side App (Client)**: Aplicação sem back-end (ex.: React app ou app mobile).
+- **Authorization Server (AS)**: Serviço como GitHub, Google.
+- **Resource Server (RS)**: API que guarda os dados (ex.: API do GitHub).
+
+### Registro do Client para o Fluxo Authorization Code com PKCE
+
+- Registre sua aplicação no AS (ex.: [GitHub OAuth Apps](https://github.com/settings/applications/new)) para obter:
+  - `client_id` (público).
+  - `redirect_uri` (ex.: `http://localhost:3000/callback` para desenvolvimento).
+- Não há client_secret (cliente público não consegue guardar segredos).
+
+### Fluxo com PKCE (Front Channel + Back Channel)
+
+**Passo 1:** Gerar Code Verifier e Challenge
+
+Seu app gera dois códigos antes de iniciar o fluxo:
+
+- `code_verifier`: String aleatória (ex.: 43 caracteres).
+
+```js
+// Exemplo em JavaScript:
+const codeVerifier = generateRandomString(43); // Usar crypto.getRandomValues()
+```
+
+- `code_challenge`: Hash do code_verifier (SHA-256 + Base64URL).
+
+```js
+    const codeChallenge = base64urlEncode(sha256(codeVerifier));
+```
+
+**Passo 2:** Iniciar autorização (Front Channel)
+
+Redirecione o usuário para o AS com:
+
+```bash
+https://auth-server.com/authorize?
+  response_type=code&
+  client_id=SEU_CLIENT_ID&
+  redirect_uri=https://seusite.com/callback&
+  scope=user:email&
+  state=ABC123xyz&
+  code_challenge=CODIGO_GERADO&
+  code_challenge_method=S256
+```
+
+PKCE adiciona:
+
+- `code_challenge`: Hash do code_verifier.
+- `code_challenge_method`: S256 (SHA-256).
+
+**Passo 3:** Usuário autoriza
+
+O AS mostra a tela de login e pede consentimento.
+
+Se aprovado, redireciona para redirect_uri com:
+
+```sh
+https://seusite.com/callback?
+  code=XYZ789abc&
+  state=ABC123xyz
+```
+
+**Passo 4:** Trocar Code por Token (Back Channel)
+
+Seu app envia o `code` + `code_verifier` (não o `challenge`) ao AS:
+
+```sh
+POST https://auth-server.com/token
+Headers:
+  Content-Type: application/x-www-form-urlencoded
+Body:
+  client_id=SEU_CLIENT_ID&
+  code=XYZ789abc&
+  grant_type=authorization_code&
+  redirect_uri=https://seusite.com/callback&
+  code_verifier=CODE_VERIFIER_ORIGINAL
+```
+
+**Passo 5:** AS valida e retorna Tokens
+
+O AS recalculá o code_challenge a partir do code_verifier.
+
+Se coincidir com o valor inicial, retorna:
+
+```json
+{
+  "access_token": "abc123xyz",
+  "token_type": "Bearer",
+  "expires_in": 3600,
+  "refresh_token": "def456uvw"
+}
+```
+
+### Acesso à API (Resource Server)
+
+```sh
+GET https://api.resource-server.com/user
+Headers:
+  Authorization: Bearer abc123xyz
+```
+
+### Diagrama do Fluxo PKCE
+
+![Fluxo Authorization Code with PKCE](./imagens/Fluxo-Authorization_Code_with_PKCE.png)
+
+### Por que PKCE é Necessário?
+
+- **Evita Ataques de Interceptação:**
+  - Sem PKCE, um invasor poderia roubar o `code` do callback e usá-lo.
+  - Com PKCE, o invasor precisaria do `code_verifier` original (não acessível).
+- **Substitui o `client_secret`:**
+  - Clientes públicos (SPAs/mobile) não podem guardar segredos.
+  - O `code_verifier` atua como uma "senha descartável".
+
+### Comparação: Authorization Code vs. Authorization Code + PKCE
+
+| Característica | Authorization Code (Back-end) | Authorization Code + PKCE (SPA/Mobile) |
+| :------------- | :---------------------------: | :------------------------------------: |
+| Cliente        | Aplicações com back-end       | SPAs, apps móveis                      |
+| Segredo        | Usa `client_secret`           | Usa `code_verifier`                    |
+| Segurança      | Alta (HTTPS + segredo)        | Alta (HTTPS + PKCE)                    |
+
+### Boas Práticas com PKCE
+
+- Sempre use `S256` (SHA-256) para o `code_challenge_method` (evite `plain`).
+- Armazene o `code_verifier` temporariamente (ex.: `sessionStorage`).
+- Valide `state` para prevenir CSRF (igual ao fluxo tradicional).
+
+## OAuth School
+
+Tarefas de [OAuth School](https://oauth.school/).
+
+This website is a companion to the course The Nuts and Bolts of OAuth 2.0 and Hands-on Introduction to OAuth 2.0 by Aaron Parecki. You should enroll in the course if you'd like to use this website!
+
+**What You'll Learn:**
+
+OAuth 2.0, OpenID, PKCE, deprecated flows, JWTs, API Gateways, and scopes. No programming knowledge needed.
+
+- The basics of OAuth 2.0 and OpenID Connect
+- Best practices for developing OAuth applications (server-side, native, and SPAs)
+- How to implement an OAuth client from scratch
+- How to protect an API with JWT access tokens
+
+### Tarefa 1: Getting Started
+
+> `https://oauth.school/exercise/introduction/`
+
+**Create an API Resource:**
+
+- Applications --> APIs --> `+ Create API`
+- Name: `API`
+- Identifier: `https://api.example.com`
+- JSON Web Token (JWT) Profile: `Auth0`
+- JSON Web Token (JWT) Singing Algorithm: `RS256`
+- `Create`
+
+**Set the Default Audience:**
+
+- `Settings`
+- API Authorization Settings
+  - Default Audience: `https://api.example.com`
+  - `Save`
+
+**Find the Issuer URI:**
+
+- Applications --> Applications --> `+ Create Application`
+- Name: `My App`
+- Choose an application type: `Native`
+- `Create`
+- `Settings` tab
+- Expand `Advanced Settings`
+- `Endpoints` tab
+- OpenID Configuration URL: `https://tarsoqueiroz.ca.auth0.com/.well-known/openid-configuration`
+
+```json
+{
+	
+  "issuer":"https://tarsoqueiroz.ca.auth0.com/",
+  "authorization_endpoint":"https://tarsoqueiroz.ca.auth0.com/authorize",
+  "token_endpoint":"https://tarsoqueiroz.ca.auth0.com/oauth/token",
+  "device_authorization_endpoint":"https://tarsoqueiroz.ca.auth0.com/oauth/device/code",
+  "userinfo_endpoint":"https://tarsoqueiroz.ca.auth0.com/userinfo",
+  "mfa_challenge_endpoint":"https://tarsoqueiroz.ca.auth0.com/mfa/challenge",
+  "jwks_uri":"https://tarsoqueiroz.ca.auth0.com/.well-known/jwks.json",
+  "registration_endpoint":"https://tarsoqueiroz.ca.auth0.com/oidc/register",
+  "revocation_endpoint":"https://tarsoqueiroz.ca.auth0.com/oauth/revoke",
+  "scopes_supported":,
+ ,"picture","created_at","identities","phone","address"],
+  "response_types_supported":["code","token","id_token","code token","code id_token","token id_token","code token id_token"],
+  "code_challenge_methods_supported":["S256","plain"],
+  "response_modes_supported":["query","fragment","form_post"],
+  "subject_types_supported":["public"],
+  "token_endpoint_auth_methods_supported":["client_secret_basic","client_secret_post","private_key_jwt","tls_client_auth","self_signed_tls_client_auth"],
+  "token_endpoint_auth_signing_alg_values_supported":["RS256","RS384","PS256"],
+  "claims_supported":["aud","auth_time","created_at","email","email_verified","exp","family_name","given_name","iat","identities","iss","name","nickname","phone_number","picture","sub"],
+  "request_uri_parameter_supported":false,
+  "request_parameter_supported":true,
+  "id_token_signing_alg_values_supported":["HS256","RS256","PS256"],
+  "tls_client_certificate_bound_access_tokens":true,
+  "request_object_signing_alg_values_supported":["RS256","RS384","PS256"],
+  "backchannel_logout_supported":true,
+  "backchannel_logout_session_supported":true,
+  "end_session_endpoint":"https://tarsoqueiroz.ca.auth0.com/oidc/logout",
+  "backchannel_authentication_endpoint":"https://tarsoqueiroz.ca.auth0.com/bc-authorize",
+  "backchannel_token_delivery_modes_supported":["poll"],
+  "global_token_revocation_endpoint":"https://tarsoqueiroz.ca.auth0.com/oauth/global-token-revocation/connection/{connectionName}",
+  "global_token_revocation_endpoint_auth_methods_supported":["global-token-revocation+jwt"]
+}
+```
+
+- **Issuer URL:** `https://tarsoqueiroz.ca.auth0.com/`
+- **Authorization Endpoint:** `https://tarsoqueiroz.ca.auth0.com/authorize`
+- **Token Endpoint:** `https://tarsoqueiroz.ca.auth0.com/oauth/token`
+
+### Tarefa 2: OAuth for Web Server Applications
+
+> `https://oauth.school/exercise/web/`
+
+**Endpoints:**
+
+- Issuer URL: `https://tarsoqueiroz.ca.auth0.com/`
+  - We'll save the issuer URL to use it when checking your work in the following exercises
+- Authorization Endpoint: `https://tarsoqueiroz.ca.auth0.com/authorize`
+  - Find your server's authorization endpoint and enter it here
+- Token Endpoint: `https://tarsoqueiroz.ca.auth0.com/oauth/token`
+  - Find your server's token endpoint and enter it here
+
+The goal of this exercise is to get an access token using the authorization code flow and PKCE as a confidential client. This exercise will walk you through the flow manually without writing any code. You are of course free to write code to do this instead if you’d like, but the instructions here will show you the step by step process of what’s happening under the hood.
+
+- Applications --> Applications --> `+ Create Application`
+- Name: `Web App`
+- Choose an application type: `Regular Web Applications`
+- `Create`
+- `Settings` tab
+
+**Regular Web Application:**
+
+- Name: `Web App`
+- Domain: `tarsoqueiroz.ca.auth0.com`
+- Client ID: `k5iAsSiIjkGJET1ff2Wq8xPuyqUQLWam`
+- Client Secret: `DMp0TVbRvNvfek2KMK8xpOAwsRcRq1MtaxflHVZIiq4fJvVTUNWk9rIfSSSKBwtJ`
+- Application URIs --> Allowed Callback URLs --> `https://example-app.com/redirect`
+- `Save`
+
+**PKCE Code Verifier:**
+
+- Code Verifier: `ec495c76a175e0b415842da6ea8c05c5e7c9b4518910654bb8db74e3`
+- Code Challenge: `CRDdYeX28-A6Tg3Ep83mZm1a8b-0g5e_mJEZxFqHs8g`
+
+**Authorization Request:**
+
+```sh
+https://tarsoqueiroz.ca.auth0.com/authorize?
+  response_type=code&
+  client_id={YOUR_CLIENT_ID}&
+  state={RANDOM_STRING}&
+  redirect_uri=https://example-app.com/redirect&
+  code_challenge={YOUR_CODE_CHALLENGE}&
+  code_challenge_method=S256
+
+https://tarsoqueiroz.ca.auth0.com/authorize?
+  response_type=code&
+  client_id=k5iAsSiIjkGJET1ff2Wq8xPuyqUQLWam&
+  state=ec495c76a175e0b415842da6ea8c05c5e7c9b4518910654bb8db74e3&
+  redirect_uri=https://example-app.com/redirect&
+  code_challenge=CRDdYeX28-A6Tg3Ep83mZm1a8b-0g5e_mJEZxFqHs8g&
+  code_challenge_method=S256
+
+https://tarsoqueiroz.ca.auth0.com/authorize?response_type=code&client_id=k5iAsSiIjkGJET1ff2Wq8xPuyqUQLWam&state=ec495c76a175e0b415842da6ea8c05c5e7c9b4518910654bb8db74e3&redirect_uri=https://example-app.com/redirect&code_challenge=CRDdYeX28-A6Tg3Ep83mZm1a8b-0g5e_mJEZxFqHs8g&code_challenge_method=S256
+```
+
+- `Log In`
+
+```text
+Congrats!
+
+The authorization server redirected you back to the app and issued an authorization code!
+
+You can exchange this authorization code for an access token now!
+
+Your app can read the authorization code and state from the URL, and they are printed below for your convenience as well.
+
+code=bxck7YurGPS4lyofMSf6C-xGfUDedCDWdJjvTj2AXRw_2
+
+state=ec495c76a175e0b415842da6ea8c05c5e7c9b4518910654bb8db74e3
+
+You should verify that the state parameter here matches the one you set at the beginning. Otherwise it's possible someone is trying to trick your app!
+```
+
+Exchange that temporary authorization code for an access token:
+
+- Code: `J24GE1H56mlb4Xg0s-8-glO6IBAUdVGhG83PMSZ44gMRF`
+- State: `ec495c76a175e0b415842da6ea8c05c5e7c9b4518910654bb8db74e3`
+
+```sh
+curl -X POST https://tarsoqueiroz.ca.auth0.com/oauth/token \
+  -d grant_type=authorization_code \
+  -d redirect_uri=https://example-app.com/redirect \
+  -d client_id={YOUR_CLIENT_ID} \
+  -d client_secret={YOUR_CLIENT_SECRET} \
+  -d code_verifier={YOUR_CODE_VERIFIER} \
+  -d code={YOUR_AUTHORIZATION_CODE}
+
+curl -X POST https://tarsoqueiroz.ca.auth0.com/oauth/token \
+  -d grant_type=authorization_code \
+  -d redirect_uri=https://example-app.com/redirect \
+  -d client_id=k5iAsSiIjkGJET1ff2Wq8xPuyqUQLWam \
+  -d client_secret=DMp0TVbRvNvfek2KMK8xpOAwsRcRq1MtaxflHVZIiq4fJvVTUNWk9rIfSSSKBwtJ \
+  -d code_verifier=ec495c76a175e0b415842da6ea8c05c5e7c9b4518910654bb8db74e3 \
+  -d code=J24GE1H56mlb4Xg0s-8-glO6IBAUdVGhG83PMSZ44gMRF
+```
+
+Token Response
+
+```json
+{
+  "access_token":"eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImJoWVdZVHoyaDJ0RUl2cU5WSlRWWiJ9.eyJpc3MiOiJodHRwczovL3RhcnNvcXVlaXJvei5jYS5hdXRoMC5jb20vIiwic3ViIjoiZ29vZ2xlLW9hdXRoMnwxMDEyMzQwODk5OTU1Nzk0MjY0NjkiLCJhdWQiOiJodHRwczovL2FwaS5leGFtcGxlLmNvbSIsImlhdCI6MTc1NTIwMTk4NSwiZXhwIjoxNzU1Mjg4Mzg1LCJhenAiOiJrNWlBc1NpSWprR0pFVDFmZjJXcTh4UHV5cVVRTFdhbSJ9.4KPV1XvgMIsfjaMit-aA_7wBh0fl4KZat2LzjyD8J8q4gIdZ-GN3G46POhsb-S0N1xqLzMlUJki09RFdVgGdW5AIxT-hHzWO629-JByru5ipgsSgSDEm3iz-9FE60cTp8Ml9BP0Ft3C1WwgIpz333DI4fPWXnwg4zymJKFZJS-Lq1ji2S31SQ2cjNZEZtKk6CHzdO2QsU6UTLGJEKZVgHHIU9ZMVWCDxqp6P_33j_TmHjoGVcKp4_fHJsnVp5FgAvnMVSJrPaa8Fkjxc-NqOJwRYSgXWxJxuFhvr4ECI3Bg1V_rVywx3ucBlWFj7UNar3KVLYcZpXSOsHQgQQYSsJw",
+  "expires_in":86400,
+  "token_type":"Bearer"
+}
+```
+
+## That's all
+
+...folks!!!
