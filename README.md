@@ -451,13 +451,36 @@ Headers:
 
 Deep Linking
 
+Fluxo do protocolo
+
 ## OAuth 2.0 para Sigle-Page Applications
 
 Dynamic Backend Server
 
-## OAuth form the Internet of Things
+Fluxo do protocolo
 
+## OAuth for the Internet of Things
 
+Para dispositivos com dificuldade para se executar o processo de login (usuário e senha).
+
+- [RFC8628](./recursos/rfc8628.txt.pdf)
+- [OAuth 2.0 Device Flow Proxy Server](https://github.com/aaronpk/Device-Flow-Proxy-Server)
+  - A demonstration of the OAuth 2.0 Device Code flow for devices without a browser or with limited keyboard entry.
+  - This service acts as an OAuth server that implements the device code flow, proxying to a real OAuth server behind the scenes.
+
+Fluxo do protocolo
+
+## Introduction to OpenID Connect
+
+Explicação sobre o que é o OpenID Connect.
+
+Diferença de um OpenID Token de um Access Token.
+
+Sobre o Hybrid OpenID Connect Flows
+
+Validando e usando um Token ID
+
+## Client Credentials Flow
 
 ## OAuth School
 
@@ -876,7 +899,141 @@ curl -X POST https://tarsoqueiroz.ca.auth0.com/oauth/token \
 }
 ```
 
-### Tarefa 5: está vindo
+### Tarefa 5: Getting an Access Token with the Client Credentials Grant
+
+> `https://oauth.school/exercise/service/`
+
+This exercise will walk you through the process of using the OAuth Client Credentials grant to get an access token.
+
+- Applications --> Applications --> `+ Create Application`
+- Name: `My M2M`
+- Choose an application type: `Machine to Machine Applications`
+- `Create`
+- Select API: `API`
+- `Authorize`
+- `Settings` tab
+
+**Basic Information:**
+
+- Name: `My M2M`
+- Domain: `tarsoqueiroz.ca.auth0.com`
+- Client ID: `kOiK7T0zrgyVRYMBpBBEI5idRp6F0n85`
+- Client Secret: `n-mj8z_xDB9CSn-l60nDy_ZmdXqreHnvEpN1WtC2ScluOF_ioBPwevy5kCjsMwoy`
+
+**Request to the authorization server’s token endpoint:**
+
+```sh
+curl -X POST https://tarsoqueiroz.ca.auth0.com/oauth/token \
+  -d grant_type=client_credentials \
+  -d client_id={YOUR_CLIENT_ID} \
+  -d client_secret={YOUR_CLIENT_SECRET}
+
+curl -X POST https://tarsoqueiroz.ca.auth0.com/oauth/token \
+  -d grant_type=client_credentials \
+  -d client_id=kOiK7T0zrgyVRYMBpBBEI5idRp6F0n85 \
+  -d client_secret=n-mj8z_xDB9CSn-l60nDy_ZmdXqreHnvEpN1WtC2ScluOF_ioBPwevy5kCjsMwoy
+```
+
+**Token Response:**
+
+```json
+{
+  "access_token":"eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImJoWVdZVHoyaDJ0RUl2cU5WSlRWWiJ9.eyJpc3MiOiJodHRwczovL3RhcnNvcXVlaXJvei5jYS5hdXRoMC5jb20vIiwic3ViIjoia09pSzdUMHpyZ3lWUllNQnBCQkVJNWlkUnA2RjBuODVAY2xpZW50cyIsImF1ZCI6Imh0dHBzOi8vYXBpLmV4YW1wbGUuY29tIiwiaWF0IjoxNzU1NTQxMzY2LCJleHAiOjE3NTU2Mjc3NjYsImd0eSI6ImNsaWVudC1jcmVkZW50aWFscyIsImF6cCI6ImtPaUs3VDB6cmd5VlJZTUJwQkJFSTVpZFJwNkYwbjg1In0.lN_EFKYUF1FAFdt_m7LA305HYmbOaPt9DlLY7iHvoHWWv7Y725lsP026GIvxAqNvp6ZTWSZS5kPRj17ogDQexyqRdXG_7Sie2YFwLs6jR6DJA1wcwHpAvGR1D9LVoXTvnhXUzmIDYzt_8A4ttLpLIhQAR_FCATfQJ8PipF8Ty9sCWjp2RptWfbnAK57RssKSyPV2QEKgdntT9Cn6TpJxWBP6GQU5RhRJRtGLSvJtYQtihUniELK6RMPoZo23rbfYxrss0R5-wP8tuDvUQBKbgur5VrmUPvPhdVn89iszU-n7b4S7Ir3R85bcF0HjogQYCBLaEs3MmMi_5TMxAwoNJw",
+  "expires_in":86400,
+  "token_type":"Bearer"
+}
+```
+
+### Tarefa 6: Getting the User's Name and Email Address using OpenID Connect
+
+> `https://oauth.school/exercise/openid/`
+
+**OpenID Connect Flow**
+
+- Code verifier (state): `e4f680d67c3f310d0c058e4cbd2c1105dfa7f696fb3b2fecc48ca034`
+- Calculate hash (code_challenge): `dYWzRoYfy1Sp_w8vZR7_oN9uydO24WwgWRp6FQ8d480`
+
+**Authorization Request:**
+
+```sh
+https://tarsoqueiroz.ca.auth0.com/authorize?
+  response_type=code&
+  client_id={YOUR_CLIENT_ID}&
+  state={RANDOM_STRING}&
+  scope={SCOPE}&
+  redirect_uri=https://example-app.com/redirect&
+  code_challenge={YOUR_CODE_CHALLENGE}&
+  code_challenge_method=S256
+
+https://tarsoqueiroz.ca.auth0.com/authorize?
+  response_type=code&
+  client_id=0JGyioXaoTnSAhgUaSc1rD64GMnFjbma&
+  state=e4f680d67c3f310d0c058e4cbd2c1105dfa7f696fb3b2fecc48ca034&
+  scope=openid+profile+email&
+  redirect_uri=https://example-app.com/redirect&
+  code_challenge=dYWzRoYfy1Sp_w8vZR7_oN9uydO24WwgWRp6FQ8d480&
+  code_challenge_method=S256
+```
+
+- `Log In`
+
+```text
+Congrats!
+
+The authorization server redirected you back to the app and issued an authorization code!
+
+You can exchange this authorization code for an access token now!
+
+Your app can read the authorization code and state from the URL, and they are printed below for your convenience as well.
+
+code=4Azoa_RSSm6gy4XIGRH-wBgmuqLhzPadoCSxja1UZ6wuM
+
+state=e4f680d67c3f310d0c058e4cbd2c1105dfa7f696fb3b2fecc48ca034
+
+You should verify that the state parameter here matches the one you set at the beginning. Otherwise it's possible someone is trying to trick your app!
+```
+
+- Code: `4Azoa_RSSm6gy4XIGRH-wBgmuqLhzPadoCSxja1UZ6wuM`
+- State: `e4f680d67c3f310d0c058e4cbd2c1105dfa7f696fb3b2fecc48ca034`
+
+**Get access token and ID token:**
+
+```sh
+curl -X POST https://tarsoqueiroz.ca.auth0.com/oauth/token \
+  -d grant_type=authorization_code \
+  -d redirect_uri=https://example-app.com/redirect \
+  -d client_id={YOUR_CLIENT_ID} \
+  -d client_secret={YOUR_CLIENT_SECRET} \
+  -d code_verifier={YOUR_CODE_VERIFIER} \
+  -d code={YOUR_AUTHORIZATION_CODE}
+
+curl -X POST https://tarsoqueiroz.ca.auth0.com/oauth/token \
+  -d grant_type=authorization_code \
+  -d redirect_uri=https://example-app.com/redirect \
+  -d client_id=0JGyioXaoTnSAhgUaSc1rD64GMnFjbma \
+  -d client_secret=_9UtfgLNKWUnlVmWVfW4puYhULLe7JK6bQWfRe10xfsyFQsdNugtLJrtTAWsvjUy \
+  -d code_verifier=e4f680d67c3f310d0c058e4cbd2c1105dfa7f696fb3b2fecc48ca034 \
+  -d code=4Azoa_RSSm6gy4XIGRH-wBgmuqLhzPadoCSxja1UZ6wuM
+```
+
+**Token Response:**
+
+```json
+{
+  "access_token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImJoWVdZVHoyaDJ0RUl2cU5WSlRWWiJ9.eyJpc3MiOiJodHRwczovL3RhcnNvcXVlaXJvei5jYS5hdXRoMC5jb20vIiwic3ViIjoiZ29vZ2xlLW9hdXRoMnwxMDEyMzQwODk5OTU1Nzk0MjY0NjkiLCJhdWQiOlsiaHR0cHM6Ly9hcGkuZXhhbXBsZS5jb20iLCJodHRwczovL3RhcnNvcXVlaXJvei5jYS5hdXRoMC5jb20vdXNlcmluZm8iXSwiaWF0IjoxNzU1NTQ3NDcxLCJleHAiOjE3NTU2MzM4NzEsInNjb3BlIjoib3BlbmlkIHByb2ZpbGUgZW1haWwiLCJhenAiOiIwSkd5aW9YYW9UblNBaGdVYVNjMXJENjRHTW5GamJtYSJ9.PEXF6WVH4_3hitOBGdXFTFEvg6mqYwTw-j05-f_6Fr3AUgCvJciF3GF1LrAz2RXZrBlhYIGZvn5NCNmG0IgkfR_SgcaITO45m7h3TANOhJ5VtmBd9hHtSvTqrGcbtbHdBYIKVrL1Sj0qgLFbelGEGTu-6I-w2Nnz3pwr76vVz5JsXaKes-HQt9OX07ANC3E30DQsyvwzn5lUTtTCVmkBOnpiYsIdoxc5Oz-WKj1ns5fQE4GWvz8c1Jd7_DWbwg7c9gJHv2170g_Mg3k0LoHbH4o-omUStM3u2fZEJ8AOyrkZwtwlSDnufkClPGrxjTg8kXcriXQPD2xWuGsFl5__lw",
+  "id_token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImJoWVdZVHoyaDJ0RUl2cU5WSlRWWiJ9.eyJnaXZlbl9uYW1lIjoiVGFyc28iLCJmYW1pbHlfbmFtZSI6IlF1ZWlyb3oiLCJuaWNrbmFtZSI6InRhcnNvcXVlaXJveiIsIm5hbWUiOiJUYXJzbyBRdWVpcm96IiwicGljdHVyZSI6Imh0dHBzOi8vbGgzLmdvb2dsZXVzZXJjb250ZW50LmNvbS9hL0FDZzhvY0lBb0U3T2F6bVd2WFJQczZNRXZfNDBxZDJIbFhJSmI5V0ppZERDUy11UHozYUtSQmxHMGc9czk2LWMiLCJ1cGRhdGVkX2F0IjoiMjAyNS0wOC0xNFQxNjoyOTozNC40NDhaIiwiZW1haWwiOiJ0YXJzb3F1ZWlyb3pAZ21haWwuY29tIiwiZW1haWxfdmVyaWZpZWQiOnRydWUsImlzcyI6Imh0dHBzOi8vdGFyc29xdWVpcm96LmNhLmF1dGgwLmNvbS8iLCJhdWQiOiIwSkd5aW9YYW9UblNBaGdVYVNjMXJENjRHTW5GamJtYSIsInN1YiI6Imdvb2dsZS1vYXV0aDJ8MTAxMjM0MDg5OTk1NTc5NDI2NDY5IiwiaWF0IjoxNzU1NTQ3NDcxLCJleHAiOjE3NTU1ODM0NzEsInNpZCI6IlZrNlgxb3Frc0cwTVY4T1FNaEpia0JKODBpOHY1QXl0In0.bHY-Za1djQqZiZoJLfYupn3oRQPdtiTpdOww3rMM_0gbxbG_ncocGxReXaaTDuL_kv2nAfIYZhvmCifqRV6H8i2NINGMJf_DjkrGFqZ3_rGHqox9_zV1HYGYDjV_V5j5jxC_SgOzdv9JTKrReiXnsnlgRLs9IT7gAyA-CWA_iYtz8m_UW2gEvQadxdDuvxDDlVQbco5oS4i6C13Lf-E8SZ6scv5KJmyFQdV8BI02tq7INja-RqZk70T888h7AbiHk_8D85yqqoI-o5VUt2a-DhEYcOCLr7eNSzSaxVJwxcuDhU9ZrUH4hASr_nkHwAnTbLfJUO8kzezNsMadHHFKPg",
+  "scope": "openid profile email",
+  "expires_in": 86400,
+  "token_type": "Bearer"
+}
+```
+
+- Base64 decoder: `https://example-app.com/base64`
+- Subject (sub): `google-oauth2|101234089995579426469`
+- Email address: `tarsoqueiroz@gmail.com`
+- Name: `Tarso Queiroz`
+
+### Tarefa 7: está vindo
 
 ## That's all
 
