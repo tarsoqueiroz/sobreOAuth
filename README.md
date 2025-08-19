@@ -195,6 +195,10 @@ Body:
 - **Valide sempre** `redirect_uri` no AS para evitar ataques de redirecionamento.
 - **Short-lived Access Tokens + Refresh Tokens** são a melhor prática.
 
+## OAuth Clients
+
+Tarefa 1
+
 ## OAuth 2.0 para Server-Side Applications (Web Apps)
 
 Fluxo Authorization Code, este é o fluxo mais seguro para aplicações web com back-end, onde o client_secret pode ser armazenado com segurança.
@@ -309,6 +313,8 @@ Headers:
 - **Use HTTPS** em todas as etapas.
 - **Armazene** `client_secret` **com segurança** (ex.: variáveis de ambiente, serviços como AWS Secrets Manager).
 - **Para SPAs**, substitua `client_secret` por PKCE (mas ainda use Authorization Code).
+
+### Tarefa 2
 
 ## OAuth 2.0 para Client-Side Applications (SPAs/Mobile)
 
@@ -453,11 +459,15 @@ Deep Linking
 
 Fluxo do protocolo
 
+Tarefa 3
+
 ## OAuth 2.0 para Sigle-Page Applications
 
 Dynamic Backend Server
 
 Fluxo do protocolo
+
+Tarefa 4
 
 ## OAuth for the Internet of Things
 
@@ -470,6 +480,12 @@ Para dispositivos com dificuldade para se executar o processo de login (usuário
 
 Fluxo do protocolo
 
+## Client Credentials Flow
+
+Fluxo do protocolo
+
+Tarefa 5
+
 ## Introduction to OpenID Connect
 
 Explicação sobre o que é o OpenID Connect.
@@ -480,7 +496,76 @@ Sobre o Hybrid OpenID Connect Flows
 
 Validando e usando um Token ID
 
-## Client Credentials Flow
+Tarefa 6
+
+## Access token types and their tradeoffs
+
+Types of Access tokens
+
+Pros and Cons of:
+
+- Reference Tokens
+- Self-encoded Tokens
+
+Tarefa 7
+
+## JWT Access Token
+
+Estrutura de um JWT Access Token
+
+JSON Web Token Profile for OAuth 2.0 Access Token
+
+Remote Token Introspection
+
+- [RFC7662 - OAuth 2.0 Token Introspection](./recursos/rfc7662.txt.pdf)
+
+Local Token verification (the fast way)
+
+The best of both worlds: using an API gateway
+
+## Choosing Token Lifetimes
+
+Increasing security with short token lifetimes
+
+Improving user experience with long token lifetimes
+
+Contextually choosing token lifetimes
+
+## Handling revoked or invalidated access token
+
+Reasons why an access token may become invalidated
+
+The problem with local validation
+
+Token lifetime considerations
+
+How apps can revoke access tokens
+
+## OAuth Scopes
+
+The purpose of OAuth scopes
+
+Defining scopes for your API
+
+Prompting the user for consent
+
+## Conclusion
+
+O futuro do OAuth: OAuth 2.1
+
+- [RFC6749 OAuth Core](./recursos/rfc6749.txt.pdf)
+  - Authorization Code +PKCE
+  - Client Credentials
+- [RFC6750 Bearer Tokens](./recursos/rfc6750.txt.pdf)
+  - Tokens in HTTP Header
+  - Tokens in POST Form Body
+
+Recursos e leitura adicionais:
+
+- [Advanced OAuth Security](https://www.udemy.com/course/advanced-oauth-security)
+- [OAuth 2.0 Simplified](https://oauth2simplified.com/)
+- [OAuth 2.0 Playground](https://www.oauth.com/playground/)
+- [OAuth.net](https://oauth.net/)
 
 ## OAuth School
 
@@ -1033,7 +1118,140 @@ curl -X POST https://tarsoqueiroz.ca.auth0.com/oauth/token \
 - Email address: `tarsoqueiroz@gmail.com`
 - Name: `Tarso Queiroz`
 
-### Tarefa 7: está vindo
+### Tarefa 7: Protecting an API endpoint with Access Tokens
+
+This exercise will demonstrate how an API can validate access tokens and allow only authorized requests through.
+
+The goal of this exercise is to demonstrate how an API can validate access tokens issued by the authorization server. We won’t be writing any code, but everything we do in this exercise are steps you can translate to code when you’re ready.
+
+- Applications --> APIs --> `+ Create API`
+- Name: `Contacts`
+- Identifier: `https://contacts.example.com`
+- JSON Web Token (JWT) Signing Algorithm: `RS256`
+- `Create`
+
+OAuth client available at:
+
+- `https://example-app.com/client`
+
+Params:
+
+- Issuer URL: `https://tarsoqueiroz.ca.auth0.com/`
+- Authorization Endpoint: `https://tarsoqueiroz.ca.auth0.com/authorize`
+- Token Endpoint: `https://tarsoqueiroz.ca.auth0.com/oauth/token`
+- Client ID: `1qLZlngOd7BGHipIPAzFESTCW9KD9NgS`
+- Client Secret (optional): `DOVRcfzHSG6oL6wJfmtDpP_Io20vD4qCUE8MZIqTm3cI7dHvoQGsN-sx-lcJEeGp`
+- Scope to request
+- Additional Fields
+  - idp
+  - audience --> `Tick`
+    - audience: `https://contacts.example.com`
+  - acr_values (okta)
+
+
+To validate the access token signature:
+
+- `https://www.jwt.io/`
+
+### Tarefa 8: Handling revoked tokens
+
+In this exercise we’re going to demonstrate how to revoke an access token and show how the API can find out it’s been revoked.
+
+This exercise builds on the previous exercises Protect an API with Access Tokens, and Refresh Tokens. Make sure you’ve completed those exercises first since you’ll need to be familiar with the activities in the exercises.
+
+Here are the steps you’ll need to have completed in the previous exercises before continuing:
+
+- Configure an API and at least one custom scope
+- Get an access token and refresh using a previously created OAuth client
+- Use a refresh token to get a new access token
+- Validate an access token using [jwt.io](https://jwt.io/) or your own code.
+
+Let’s double check that you have a valid access token at this stage by pasting the token into jwt.io or validating it with a JWT library.
+
+The token signature should validate, and the token expiration date should be in the future.
+
+Now the idea is to demonstrate what happens when a refresh token is revoked. To demonstrate this, we’ll simulate what the client application would do when the user clicks “log out”, which is to make a request to the OAuth server’s token revocation endpoint telling it to revoke the refresh token.
+
+Make sure you’ve obtained a refresh token by following the instructions in the **Refresh Token** exercise. Note that this exercise will work with applications both with and without a client secret.
+
+Check that the refresh token works by using it to get a new access token.
+
+```sh
+curl https://xxxxxxx.us.auth0.com/oauth/token \
+  -d grant_type=refresh_token \
+  -d client_id={YOUR_CLIENT_ID} \
+  -d client_secret={YOUR_CLIENT_SECRET} \
+  -d refresh_token={REFRESH_TOKEN}
+```
+
+If you’re seeing that the refresh token is still valid, it means the revocation request failed. The response from the revocation endpoint will always be HTTP 200, even if the token is invalid or has already been revoked. Additionally, a client can only revoke tokens that were issued to that same client, so if you’re having trouble here double check that the credentials you’re using in the revocation request belong to the same client that you used to get the refresh token.
+
+Auth0’s access tokens can’t be revoked, so you’ll need to consider the access token lifetime when designing your system.
+
+### Tarefa 9: Enforce scopes in your API
+
+In this exercise you’ll create some additional custom scopes for your API and request access tokens with those scopes.
+
+This exercise will walk you through creating some additional custom scopes for your API, as well as requesting and validating access tokens with those scopes.
+
+You’ll need to be familiar with the earlier exercises, so make sure you have already:
+
+- Set up your Auth0 account and created an API resource
+- Set up a client application to be able to request access tokens
+- Familiarized yourself with using jwt.io to validate access tokens, or have built an API that validates JWT access tokens
+
+From your API’s settings page, click on the Permissions tab to show your list of current scopes for the API. This is where we’ll add two new scopes, representing finer grained access to the API.
+
+Create two new scopes to represent create and delete access to this resource. The actual scope name is your choice, but we’ll follow a convention of prepending “create:photos” and “delete:photos” to keep things simple.
+
+Create a new scope called “create:photos”, and add a display phrase such as “Upload photos to your account”.
+
+Add another scope called “delete:photos” with a similar description.
+
+Back on your API’s Settings page, uncheck the setting “Allow skipping user consent”. This will make it so that you are always asked for consent when an application requests these scopes, even if it is a first-party app.
+
+Now that these scopes are created, your application can request them. Build the authorization URL, but this time request all of your custom scopes.
+
+```sh
+https://xxxxxx.us.auth0.com/authorize?
+  response_type=code&
+  scope=create:photos+delete:photos&
+  client_id={YOUR_CLIENT_ID}&
+  state={RANDOM_STRING}&
+  redirect_uri=https://example-app.com/redirect&
+  code_challenge={YOUR_CODE_CHALLENGE}&
+  code_challenge_method=S256
+```
+
+Visit that URL in your browser, but this time instead of being redirected back immediately, you will see a prompt asking for permission.
+
+Click Accept and you’ll be redirected back to the redirect URL. Go ahead and exchange that authorization code for an access token just like in the earlier exercises, the sample curl command is repeated below.
+
+```sh
+curl -X POST https://xxxxxx.us.auth0.com/oauth/token \
+  -d grant_type=authorization_code \
+  -d redirect_uri=https://example-app.com/redirect \
+  -d client_id={YOUR_CLIENT_ID} \
+  -d client_secret={YOUR_CLIENT_SECRET} \
+  -d code_verifier={YOUR_CODE_VERIFIER} \
+  -d code={YOUR_AUTHORIZATION_CODE}
+```
+
+This time when you get back the token response, you should see that it also includes your new custom scopes!
+
+```sh
+… "scope":"photos create:photos delete:photos" …
+```
+
+Now that the application has an access token, it would make an API request to the API. The API then needs to validate the access token, which it can do the same way as in the previous exercise “Protecting an API with Access Tokens”.
+
+Paste the JWT token into jwt.io and it will validate the signature of the token and show you the contents.
+
+This time, in addition to just checking the signature and audience, your API now also needs to verify which scopes are contained in the token.
+
+The “scope” property will be a space-separated string of scopes that were issued in this token. Your API would look at that string, and depending on whether you’re running the “create” or “delete” API operation, confirm that the corresponding scope is present in the token.
+
+For extra credit, try this again but request only one of your custom scopes and see how that changes the contents of the token.
 
 ## That's all
 
