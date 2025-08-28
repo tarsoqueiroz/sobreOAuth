@@ -647,7 +647,32 @@ try {
 - [RFC 9207: OAuth 2.0 Authorization Server Issuer Identification](https://www.rfc-editor.org/rfc/rfc9207)
 - [RFC 9126: OAuth 2.0 Pushed Authorization Requests](https://www.rfc-editor.org/rfc/rfc9126.html)
 
-## next
+## Segurança do Back Channel
+
+Client Authentication in OAuth
+
+MTLS as Client Authentication
+
+- [RFC 8705: OAuth 2.0 Mutual-TLS Client Authentication and Certificate-Bound Access Tokens](https://www.rfc-editor.org/rfc/rfc8705)
+
+Private Key JWT as Client Authentication
+
+- [RFC 7523](https://www.rfc-editor.org/rfc/rfc7523)
+- [RFC 7521](https://www.rfc-editor.org/rfc/rfc7521)
+
+## Security Access Tokens
+
+Requisitos adicionais para validação de Access Token
+
+- [FAPI 2.0 Security Profile](https://openid.bitbucket.io/fapi/fapi-security-profile-2_0.html)
+
+Problemas com Bearer Tokens
+
+MTLS para Sender-Constrained Access Token
+
+DPoP para Sender-Constrained Access Token
+
+## Non-Reputiation
 
 ## OAuth School
 
