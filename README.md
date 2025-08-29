@@ -668,11 +668,19 @@ Requisitos adicionais para validação de Access Token
 
 Problemas com Bearer Tokens
 
+- [RFC 6750: OAuth 2.0 Bearer Token Usage](https://oauth.net/2/bearer-tokens/)
+
 MTLS para Sender-Constrained Access Token
 
 DPoP para Sender-Constrained Access Token
 
 ## Non-Reputiation
+
+- [FAPI 2.0 Message Signing (Draft)](https://openid.bitbucket.io/fapi/fapi-2_0-message-signing.html)
+- [RFC 9101](https://datatracker.ietf.org/doc/html/rfc9101)
+- [JWT Secured Authorization Response Mode for OAuth 2.0 (JARM) incorporating errata set 1](https://openid.net/specs/oauth-v2-jarm.html)
+- [JWT Response for OAuth Token Introspection](https://datatracker.ietf.org/doc/html/draft-ietf-oauth-jwt-introspection-response)
+- [RFC9421: HTTP Message Signatures](https://oauth.net/http-signatures/)
 
 ## OAuth School
 
