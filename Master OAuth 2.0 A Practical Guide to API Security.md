@@ -128,6 +128,359 @@ Fluxo Padrão do OAuth 2.0 (Authorization Code Grant)
 1. Servidor de autorização emite um código de autorização.
 1. Cliente troca o código por um token usando `code_verifier` (sem `client_secret`).
 
+### OAuth 2.0 Scopes
+
+**O que é**?
+
+O escopo (scope) é um mecanismo que define as permissões que um cliente solicita para acessar os recursos do usuário. Ele delimita até onde o cliente pode agir em nome do usuário (ex.: ler dados, escrever dados, acessar APIs específicas).
+
+**Estrutura**
+
+- Os escopos são representados como uma lista de strings separadas por espaços.
+- Cada string define uma permissão específica.
+- Exemplo: `scope=read:contacts write:files openid email`
+
+**Nomenclatura**
+
+- **Formato**: Recomenda-se usar uma estrutura hierárquica com : para organizar os escopos.
+- **Exemplos**:
+  - `read:contacts` (ler contatos)
+  - `write:files` (escrever arquivos)
+  - `openid` (acesso ao perfil do usuário via OpenID Connect)
+  - `email` (acesso ao endereço de e-mail)
+- **Boas Práticas**:
+  - Usar nomes descritivos e intuitivos.
+  - Evitar escopos genéricos como `access` ou `all`.
+  - Seguir padrões definidos pela API (ex.: Google escopos).
+
+**Estratégias**
+
+- Escopos Granulares
+  - Permissões específicas para cada operação (ex.: `read:contacts`, `delete:contacts`).
+  - **Vantagem**: Maior controle e segurança.
+  - **Desvantagem**: Pode levar a muitos escopos complexos.
+- Escopos Agrupados
+  - Escopos que concedem acesso a um conjunto de funcionalidades (ex.: `profile` pode incluir nome, e-mail e foto).
+  - **Vantagem**: Simplicidade para o usuário.
+  - **Desvantagem**: Pode conceder permissões desnecessárias.
+- Escopos Dinâmicos
+  - O cliente solicita escopos adicionais durante o fluxo conforme a necessidade.
+  - **Exemplo**: Um app pode pedir `read:contacts` inicialmente e depois `write:contacts` quando o usuário for adicionar um contato.
+- Escopos Incrementais
+  - O cliente solicita permissões mínimas inicialmente e pede escopos adicionais em momentos específicos.
+  - **Vantagem**: Melhora a experiência do usuário (não pede tudo de uma vez).
+
+**Fluxo no OAuth 2.0**
+
+- **Solicitação**: O cliente inclui o parâmetro scope na requisição de autorização.
+  - `https://auth-server.com/authorize?client_id=123&scope=read:contacts&redirect_uri=...`
+- **Consentimento**: O usuário vê os escopos solicitados e decide autorizar ou negar.
+- **Token**: O servidor de autorização emite um token de acesso limitado aos escopos aprovados.
+- **Validação**: O servidor de recursos verifica se o token tem o escopo necessário para a operação.
+
+**Exemplo de Uso**
+
+```sh
+# Solicitação de autorização
+GET /authorize?client_id=abc&scope=read:contacts+write:files&redirect_uri=...
+
+# Token de acesso com escopos
+{
+  "access_token": "xyz123",
+  "token_type": "Bearer",
+  "scope": "read:contacts write:files"
+}
+```
+
+**Boas Práticas**
+
+- **Princípio do Menor Privilégio**: Solicitar apenas os escopos necessários.
+- **Transparência**: Exibir claramente ao usuário o que cada escopo significa.
+- **Validação no Resource Server**: Sempre verificar se o token tem o escopo para a ação solicitada.
+
+Os escopos são fundamentais para garantir que o cliente tenha **apenas as permissões necessárias**, protegendo a privacidade e a segurança do usuário. Estratégias bem definidas de escopo melhoram a experiência e a confiança na aplicação.
+
+**Como Derivar Escopos do OAuth 2.0 de Forma Eficaz**?
+
+A derivação eficaz de escopos no OAuth 2.0 requer uma abordagem estruturada que equilibre segurança, usabilidade e facilidade de manutenção. Aqui está um guia direto:
+
+Princípios para Derivação de Escopos
+
+- **Privilégio Mínimo**: Conceda apenas as permissões necessárias para a funcionalidade do cliente.
+- **Design Centrado no Usuário**: Garanta que os escopos sejam compreensíveis durante o consentimento.
+- **Alinhamento com a API**: Espelhe a estrutura e os recursos da sua API.
+- **Flexibilidade**: Permita permissões amplas e granulares conforme a necessidade.
+
+Estratégias para Derivar Escopos
+
+- Escopos Baseados em Recursos
+  - Derive os escopos dos recursos expostos pela API.
+  - **Formato**: `{ação}:{recurso}`
+  - **Exemplos**:
+    - `ler:contatos, escrever:contatos, excluir:contatos`
+    - `ler:arquivos, upload:arquivos, compartilhar:arquivos`
+- Escopos Baseados em Funções
+  - Agrupe permissões em funções para simplificar.
+  - **Exemplos**:
+    - `usuario` (leitura/escrita básica), `admin` (acesso total), `moderador` (acesso limitado).
+    - **Caso de Uso**: Ideal para aplicativos com funções de usuário bem definidas.
+- Escopos Funcionais
+  - Defina escopos com base na funcionalidade do cliente, não apenas em recursos.
+  - **Exemplos**:
+    - `postar_mensagem` (para um app de mídia social), `processar_pagamento` (para e-commerce).
+  - **Vantagem**: Alinhamento mais próximo com o que o cliente realmente faz.
+- Escopos Hierárquicos
+  - Crie escopos aninhados onde escopos amplos implicam permissões mais restritas.
+  - **Exemplo**: escrever pode incluir `ler`, mas isso exige cuidado para não conceder privilégios excessivos.
+
+Passos Práticos para Derivar Escopos
+
+- Inventariar Endpoints da API:
+  - Liste todos os endpoints e as ações que realizam (GET, POST, PUT, DELETE).
+  - Exemplo: GET /api/contatos → ler:contatos.
+- Agrupar Ações e Recursos:
+  - Agrupe ações ou recursos semelhantes para evitar explosão de escopos.
+  - Exemplo: gerenciar:contatos pode incluir criar, ler, atualizar, excluir.
+- Definir Sintaxe dos Escopos:
+  - Use uma convenção de nomenclatura consistente (ex.: {ação}:{recurso}).
+  - Evite termos ambíguos como acesso ou usar.
+- Mapear Escopos para Necessidades do Cliente:
+  - Para cada cliente, determine o conjunto mínimo de escopos necessários.
+  - Exemplo: Um app de backup pode precisar apenas de ler:arquivos.
+- Implementar Escopos Incrementais:
+  - Permita que clientes solicitem escopos adicionais posteriormente (ex.: durante a execução).
+
+Exemplos de Escopos Bem-Projetados
+
+ APIs do Google: https://www.googleapis.com/auth/calendar.readonly
+- GitHub: repo, user:email, ler:org
+- -API Customizada: ler:projetos, escrever:tarefas, excluir:comentarios
+
+Validação e Aplicação
+
+- Servidor de Autorização: Emite tokens apenas com os escopos aprovados.
+- Servidor de Recurso: Valida o escopo para cada solicitação à API.
+
+```java
+    // Exemplo em Java/Spring
+    @PreAuthorize("hasAuthority('SCOPE_ler:contatos')")
+    public List<Contact> getContacts() { ... }
+```
+
+Ferramentas e Técnicas
+
+- Especificação OpenAPI: Anote endpoints com os escopos necessários.
+
+```yaml
+    paths:
+      /contatos:
+        get:
+          security:
+            - oauth2: ['ler:contatos']
+```
+
+- Registro Dinâmico de Escopos: Permita que clientes registrem escopos personalizados para APIs flexíveis (menos comum).
+
+Armadilhas Comuns a Evitar
+
+- **Granularidade Excessiva**: Muitos escopos complicam o consentimento e o gerenciamento.
+- **Granularidade Insuficiente**: Poucos escopos concedem permissões excessivas.
+- **Nomenclatura Pobre**: Nomes unclear de escopos confundem usuários e desenvolvedores.
+
+Evolução e Versionamento
+
+- **Versionar Escopos**: Se a API mudar, introduza novos escopos (ex.: v2.ler:contatos).
+- **Descontinuação**: Planeje a aposentadoria de escopos antigos sem quebrar clientes.
+
+A derivação eficaz de escopos requer:
+
+- Entender a estrutura da API e as necessidades dos clientes.
+- Aplicar o princípio do privilégio mínimo.
+- Usar convenções de nomenclatura consistentes e claras.
+- Validar escopos tanto no servidor de autorização quanto no servidor de recurso.
+
+Seguindo essas práticas, você cria um sistema OAuth2 seguro e amigável que escala com sua API.
+
+### Access Token vs Refresh Token
+
+Access Token:
+
+- **O que é**: Credencial de curta duração (ex.: 1 hora) usada para acessar recursos protegidos.
+- **Função**: Autorizar solicitações à API (ex.: `GET /dados`).
+- **Localização**: Enviado no cabeçalho `Authorization: Bearer <token>`.
+- **Segurança**: Se exposto, pode ser usado por atacantes até expirar.
+
+Refresh Token:
+
+- **O que é**: Credencial de longa duração (ex.: 30 dias) usada para obter novos access tokens.
+- **Função**: Renovar access tokens sem exigir nova autenticação do usuário.
+- **Localização**: Armazenado com segurança no cliente (ex.: banco de dados).
+- **Segurança**: Mais crítico que o access token – se vazado, permite gerar novos access tokens indefinidamente.
+
+Diferença Chave:
+
+| Aspecto   | Access Token                     | Refresh Token                  |
+| :-------- | :------------------------------- | :----------------------------- |
+| Duração   |	Curta (minutos/horas)            | Longa (dias/meses)             |
+| Uso       |	Acesso a APIs                    | Obter novos access tokens      |
+| Exposição |	Enviado em toda requisição à API | Armazenado no cliente          |
+| Risco     | Médio (expira rápido)            | Alto (pode gerar novos tokens) |
+
+Exemplo de Fluxo:
+
+- Usuário faz login → Recebe `access_token` (1h) + `refresh_token` (30d).
+- Quando `access_token` expira, o cliente usa o `refresh_token` para obter um novo.
+- Se `refresh_token` expirar, o usuário precisa autenticar novamente.
+
+Por que Usar os Dois?
+
+- **Segurança**: Access tokens de curta duração limitam o risco de vazamento.
+- **Usabilidade**: Refresh tokens evitam que o usuário precise logar frequentemente.
+
+> ⚠️ **Importante**: Refresh tokens devem ser armazenados com segurança (ex.: HTTP-only cookies, armazenamento seguro no servidor).
+
+### Formato de Tokens: Opaque Token vs JWT
+
+Opaque Token:
+
+- **O que é**: Uma string aleatória opaca (sem significado interno), como um UUID.
+- **Funcionamento**: O servidor de recursos precisa consultar o authorization server (via introspection) para validar o token e obter seus dados (ex.: scopes, expiração).
+- **Vantagem**: Mais seguro - as informações não são expostas no próprio token.
+- **Desvantagem**: Requer uma chamada adicional ao authorization server para validação.
+
+Exemplo:
+
+- `abc123def-4567-89ab-cdef-0123456789ab`
+
+JWT (JSON Web Token):
+
+- **O que é**: Token autocontido em formato JSON, composto por Header, Payload e Signature.
+- **Funcionamento**: O servidor de recursos valida o token verificando a assinatura (usando uma chave pública) e lê os dados diretamente do payload.
+- **Vantagem**: Mais eficiente - não requer consulta ao authorization server a cada validação.
+- **Desvantagem**: Se não for assinado/criptografado corretamente, pode ser vulnerável.
+
+Estrutura:
+
+- `header.payload.signature`
+
+Exemplo de Payload:
+
+```json
+{
+  "sub": "1234567890",
+  "name": "João Silva",
+  "scope": "read:contacts",
+  "exp": 1718900000
+}
+```
+
+Diferença Chave:
+
+| Aspecto       | Opaque Token                        | JWT                                   |
+| :------------ | :---------------------------------- | :------------------------------------ |
+| Estrutura     | String aleatória (opaca)            | JSON autocontido (header.payload.sig) |
+| Validação     | Requer introspection no auth server | Validação local via assinatura        |
+| Performance   | Mais lento (chamada de rede)        | Mais rápido (validação local)         |
+| Transparência | Nenhum dado visível no token        | Dados visíveis (se não criptografado) |
+| Uso Comum     | Sistemas com alta segurança         | APIs distribuídas ou stateless        |
+
+Quando Usar?
+
+- **Opaque**: Quando a segurança é crítica e você controla o auth server.
+- **JWT**: Quando performance e escalabilidade são prioritárias (ex.: microserviços).
+
+> 🔒 **Dica**: Para JWTs, sempre use assinatura (JWS) e considere criptografia (JWE) para dados sensíveis.
+
+### OpenID Connect (OIDC) e comparação com o OAuth 2.0
+
+**OpenID Connect (OIDC): O que é**?
+
+O OpenID Connect (OIDC) é um protocolo de autenticação construído sobre o OAuth 2.0. Ele permite que aplicações verifiquem a identidade de um usuário de forma segura e obtenham informações básicas do seu perfil.
+
+Problema que Resolve:
+
+- Evitar que cada site exija seu próprio login/senha.
+- Permitir que usuários se autentiquem usando contas que já possuem (ex.: Google, Facebook, Microsoft).
+
+**Como Funciona (Simplificado)**:
+
+- Você clica em "Login com Google" em um site.
+- O site redireciona você para o Google.
+- Você faz login no Google e autoriza o site a acessar seu perfil.
+- Google redireciona você de volta ao site com um **ID Token**.
+- O site valida o ID Token e sabe quem você é.
+
+**Componentes Principais**:
+
+- **ID Token**: Um JWT que contém informações do usuário (ex.: nome, email).
+- **UserInfo** Endpoint: Uma API que retorna mais dados do perfil (usando o access token).
+- **Claims**: Dados padrão como `sub` (ID do usuário), `email`, `name`.
+
+**Exemplo de ID Token (JWT)**:
+
+```json
+{
+  "iss": "https://accounts.google.com",
+  "sub": "1234567890",
+  "aud": "meu-site",
+  "email": "usuario@gmail.com",
+  "name": "João Silva",
+  "picture": "https://photo.jpg"
+}
+```
+
+**Diferença Chave vs OAuth 2.0**:
+
+- **OAuth 2.0**: Foca em autorização (acessar recursos como fotos ou posts).
+- **OIDC**: Foca em autenticação (saber quem é o usuário).
+
+**Vantagens**:
+
+- ✅ Seguro (usa tokens JWT assinados).
+- ✅ Simples para o usuário (não precisa criar nova conta).
+- ✅ Padronizado (funciona com qualquer provedor: Google, Azure, etc.).
+
+**Fluxo do OIDC**:
+
+O fluxo mais comum e seguro do OIDC é o Authorization Code Flow, que utiliza o fluxo de código de autorização do OAuth 2.0 e adiciona a funcionalidade de autenticação. Aqui está uma versão simplificada e direta.
+
+![Fluxo do OIDC](./imagens/Fluxo-OIDC.png)
+
+***Fluxo do OIDC***
+
+- **Início do Login**: O usuário clica em "Entrar com Google" (ou outro IdP) em um aplicativo (o Cliente).
+- **Solicitação de Autenticação**: O aplicativo redireciona o navegador do usuário para o Authorization Server (AS, ex.: Google). A URL inclui parâmetros como:
+  - `client_id`: Identificador do aplicativo.
+  - `redirect_uri`: Para onde o AS deve enviar a resposta.
+  - `response_type=code`: Solicita um código de autorização.
+  - `scope=openid email profile`: Solicita permissão para autenticar e acessar o perfil.
+- **Autenticação e Consentimento**: O usuário se autentica no AS (digita senha) e concorda em conceder as permissões solicitadas pelo aplicativo.
+- **Código de Autorização**: O AS redireciona o navegador de volta para o aplicativo, enviando um código de autorização (code) como parâmetro na URL.
+- **Cliente Recebe o Código**: O aplicativo (backend) captura o código da URL.
+- **Troca do Código por Tokens**: O aplicativo (backend) faz uma requisição diretamente (back-channel) para o AS. Envia o código + client_secret (credencial que prova sua identidade).
+- **Tokens Emitidos**: O AS valida as informações e responde com os tokens:
+  - **ID Token (JWT)**: O mais importante. É um JWT que contém as informações (claims) do usuário (ex.: ID, nome, email). Prova que a autenticação foi bem-sucedida.
+  - **Access Token**: Usado para acessar endpoints adicionais, como a API UserInfo.
+  - **Refresh Token**: Opcional, para obter novos tokens sem reautenticação.
+- **Validação e Login**: O aplicativo valida o ID Token (verifica assinatura, emissor, expiração) e, se tudo estiver correto, cria uma sessão para o usuário, efetivando o login.
+- **(Opcional) Solicitar Informações Adicionais**: Se necessário, o aplicativo pode usar o Access Token para chamar o endpoint UserInfo e obter mais dados do perfil do usuário.
+
+**Por que este fluxo é seguro**?
+
+- O **ID Token** é assinado, garantindo sua autenticidade.
+- O **Access Token** é transmitido apenas pelo back-channel (servidor-para-servidor).
+- O usuário **nunca** vê ou manipula os tokens diretamente.
+
+**Por que Desenvolvedores Gostam**:
+
+- Economiza tempo (não precisa construir sistema de login).
+- Mais seguro (provedores grandes cuidam da segurança).
+- Experiência do usuário melhor (sem senhas novas para lembrar).
+
+**Resumo**:
+
+OIDC é o "login com redes sociais" por trás dos panos, mas de forma padronizada e segura. É a solução moderna para autenticação na web.
+
 ## OAuth 2.0 User-Initiated Flows (day 2)
 
 Secure authorization for Web and Mobile applications.
