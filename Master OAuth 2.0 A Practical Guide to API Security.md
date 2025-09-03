@@ -481,9 +481,305 @@ O fluxo mais comum e seguro do OIDC é o Authorization Code Flow, que utiliza o 
 
 OIDC é o "login com redes sociais" por trás dos panos, mas de forma padronizada e segura. É a solução moderna para autenticação na web.
 
-## OAuth 2.0 User-Initiated Flows (day 2)
+## OAuth 2.0 User-Initiated Flows
 
 Secure authorization for Web and Mobile applications.
+
+- Implicit Flow (deprecated)
+- Authorization Code Flow
+- PKCE Flow
+
+### OAuth 2.0 Implicit Flow
+
+> ⚠️ **Atenção:** Este fluxo é considerado inseguro e foi depreciado.
+
+Não é recomendado para novas implementações. Foi substituído pelo Authorization Code Flow com PKCE.
+
+- [Playground: OAuth 2.0 Implicit Flow](https://www.oauth.com/playground/implicit.html)
+
+**Funcionamento Simplificado**:
+
+- Cliente Redireciona o Usuário:
+  - O cliente (ex.: uma SPA) redireciona o navegador para o servidor de autorização com os parâmetros:
+
+```sh
+response_type=token
+client_id=123
+redirect_uri=https://cliente.com/callback
+scope=leitura
+```
+
+  - Exemplo de URL:
+
+```text
+https://auth-server.com/authorize?response_type=token&client_id=123&redirect_uri=https://cliente.com/callback&scope=leitura
+```
+
+- Usuário Autentica e Autoriza:
+  - O usuário faz login no servidor de autorização e concede permissão ao cliente.
+- Servidor Redireciona com Token no Fragmento da URL:
+  - O servidor redireciona de volta para o `redirect_uri` com o access token no fragmento (parte após `#`) da URL:
+
+```text
+https://cliente.com/callback?access_token=abc123&token_type=Bearer&expires_in=3600
+```
+
+- Cliente Extrai o Token:
+  - O cliente (JavaScript) lê o token do fragmento da URL usando:
+
+```sh
+window.location.hash
+```
+
+- Cliente Usa o Token:
+  - O cliente usa o access token para acessar recursos protegidos:
+
+```http
+GET /api/dados-protegidos HTTP/1.1
+Authorization: Bearer abc123
+```
+
+**Problemas Críticos (*Por que foi depreciado*)**:
+
+- **Token Exposto no Navegador**:
+
+  O token fica visível no histórico do navegador, logs de servidor e pode ser vazado via `Referer` header.
+
+- **Sem Autenticação do Cliente**:
+
+  Não há `client_secret`, tornando fácil impersonation.
+
+- **Sem Refresh Token**:
+
+  Tokens de curta duração exigem novo login frequente.
+
+- **Vulnerável a Token Injection**:
+
+  Atacantes podem injetar tokens maliciosos na URL.
+
+**Alternativa Moderna (*Use isto!*)**:
+
+**`Authorization Code Flow + PKCE`** para clientes públicos (SPAs, apps móveis).
+
+- Mantém o token seguro no back-channel.
+- Usa `PKCE` (`code_challenge` e `code_verifier`) para substituir o `client_secret`.
+
+**Resumo Histórico**:
+
+- **Propósito Original**: Simplificar o fluxo para clientes públicos (como SPAs) antes do PKCE existir.
+- **Status Atual**: Depreciado por padrões de segurança modernos (OAuth 2.1 removeu este fluxo).
+
+**Referência**: 
+
+- [OAuth 2.0 Security Best Practices](https://datatracker.ietf.org/doc/html/draft-ietf-oauth-security-topics-16#section-2.1.2)
+
+### OAuth 2.0 Authorization Code Flow
+
+- [Playground: OAuth 2.0 Authorization Code Flow](https://www.oauth.com/playground/authorization-code.html)
+- Fluxo Mais Seguro e Recomendado
+
+**Funcionamento Simplificado**:
+
+- Cliente Redireciona o Usuário:
+  - O cliente (aplicação web) redireciona o navegador para o servidor de autorização com:
+
+```sh
+    response_type=code
+    client_id=123
+    redirect_uri=https://cliente.com/callback
+    scope=leitura
+    state=xyz (protege contra CSRF)
+```
+
+  - URL Exemplo:
+
+```sh
+https://auth-server.com/authorize?response_type=code&client_id=123&redirect_uri=https://cliente.com/callback&scope=leitura&state=xyz
+```
+
+- Usuário Autentica e Autoriza:
+  - O usuário faz login no servidor de autorização e concede permissão ao cliente.
+- Servidor Redireciona com Código:
+  - O servidor redireciona para o redirect_uri com um código de autorização (curta duração):
+
+```sh
+https://cliente.com/callback?code=ABC789&state=xyz
+```
+
+- Cliente Troca Código por Token:
+  - O cliente (backend) faz uma requisição diretamente ao servidor de autorização (back-channel):
+
+```http
+POST /token HTTP/1.1
+Host: auth-server.com
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=authorization_code
+&code=ABC789
+&redirect_uri=https://cliente.com/callback
+&client_id=123
+&client_secret=segredo456
+```
+
+- Servidor Retorna Tokens:
+  - O servidor valida as informações e retorna:
+
+```json
+{
+  "access_token": "abc123",
+  "token_type": "Bearer",
+  "expires_in": 3600,
+  "refresh_token": "def456"
+}
+```
+
+- Cliente Acessa Recurso Protegido:
+  - O cliente usa o access token para acessar a API:
+
+```http
+GET /api/dados HTTP/1.1
+Authorization: Bearer abc123
+```
+
+- Refresh Token (Opcional):
+  - Quando o access token expira, o cliente pode usar o refresh token para obter um novo:
+
+```http
+    POST /token HTTP/1.1
+    Host: auth-server.com
+    Content-Type: application/x-www-form-urlencoded
+
+    grant_type=refresh_token
+    &refresh_token=def456
+    &client_id=123
+    &client_secret=segredo456
+```
+
+**Vantagens**:
+
+- **Tokens Seguros**: O access token é enviado apenas no back-channel (nunca no navegador).
+- **Autenticação do Cliente**: Usa `client_secret` (para clientes confidenciais).
+- **Refresh Tokens**: Permite obter novos access tokens sem interação do usuário.
+
+**Para Clientes Públicos (SPAs, Mobile)**:
+
+Use **`PKCE` (Proof Key for Code Exchange)** para substituir o `client_secret`:
+
+- Adiciona `code_challenge` e `code_verifier` ao fluxo.
+- Mantém a segurança mesmo sem `client_secret`.
+
+**Diagrama do Fluxo**:
+
+![OAuth 2.0 Authorization Code Grant](./imagens/OAuth20_Authorization_Code_Grant.png)
+
+***OAuth 2.0 Authorization Code Grant***
+
+**Por que é o Fluxo Mais Usado**?
+
+- **Segurança**: Tokens sensíveis nunca expostos no front-end.
+- **Flexibilidade**: Funciona para clientes confidenciais e públicos (com `PKCE`).
+- **Eficiência**: Refresh tokens melhoram a experiência do usuário.
+
+**Referência**:
+
+- [RFC 6749 - Authorization Code Grant](https://tools.ietf.org/html/rfc6749#section-4.1)
+
+### OAuth 2.0 PKCE Flow (Proof Key for Code Exchange)
+
+- [Playground: OAuth 2.0 PKCE Flow](https://www.oauth.com/playground/authorization-code-with-pkce.html)
+- Fluxo Seguro para Clientes Públicos (SPAs, Apps Móveis)
+
+O PKCE é uma extensão do Authorization Code Flow que substitui a necessidade do client_secret usando criptografia. Foi projetado para proteger contra ataques de interceptação de código.
+
+**Funcionamento Simplificado**:
+
+**Geração dos Códigos (no Cliente)**:
+
+- Gera o code_verifier:
+  - Uma string aleatória (ex.: 43 caracteres).
+  - Exemplo: `dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk`
+- Gera o code_challenge:
+  - Faz um hash do `code_verifier` (SHA-256) e codifica em Base64URL.
+  - Exemplo: `E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM`
+
+**Solicitação de Autorização (Front-Channel)**:
+
+- Cliente Redireciona o Usuário:
+  O cliente envia o code_challenge para o servidor de autorização:
+
+```sh
+https://auth-server.com/authorize?
+  response_type=code
+  &client_id=123
+  &redirect_uri=https://cliente.com/callback
+  &code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM
+  &code_challenge_method=S256
+```
+
+- Usuário Autentica e Autoriza:
+  - O usuário faz login e concede permissão.
+- Servidor Retorna Código de Autorização:
+  - Redireciona para:
+
+```sh
+    https://cliente.com/callback?code=ABC789
+```
+
+**Troca do Código por Token (Back-Channel)**:
+
+- Cliente Envia o code_verifier:
+  - Faz uma requisição segura (HTTPS) ao servidor:
+
+```http
+POST /token HTTP/1.1
+Host: auth-server.com
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=authorization_code
+&code=ABC789
+&redirect_uri=https://cliente.com/callback
+&client_id=123
+&code_verifier=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk
+```
+
+**Servidor Valida o Desafio**:
+
+- Gera o code_challenge a partir do code_verifier recebido.
+- Compara com o code_challenge armazenado da solicitação inicial.
+- Se coincidir, emite os tokens.
+
+**Tokens Emitidos**:
+
+```json
+{
+  "access_token": "abc123",
+  "token_type": "Bearer",
+  "expires_in": 3600,
+  "refresh_token": "def456"
+}
+```
+
+**Por que o PKCE é Seguro**?
+
+- **Previne Ataques de Interceptação**: Mesmo que um attacker capture o `code`, não pode trocá-lo por um token sem o `code_verifier` original.
+- **Remove a Necessidade do `client_secret`**: Ideal para clientes que não podem armazenar segredos (SPAs, apps móveis).
+- **Amplamente Adotado**: Recomendado pelo OAuth 2.1 e obrigatório para clientes públicos.
+
+**Diagrama do Fluxo PKCE**:
+
+![OAuth 2.0 PKCE Flow](./imagens/OAuth20_PKCE_Flow.png)
+
+***OAuth 2.0 PKCE Flow***
+
+**Quando Usar**?
+
+- SPAs (React, Angular, Vue)
+- Aplicativos Móveis (Android, iOS)
+- Aplicações Desktop
+
+**Referência**: 
+
+- [RFC 7636 - PKCE](https://tools.ietf.org/html/rfc7636)
 
 ## Advanced Security for User-Initiated OAuth 2.0 Flows (day 3)
 
