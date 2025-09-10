@@ -781,23 +781,224 @@ grant_type=authorization_code
 
 - [RFC 7636 - PKCE](https://tools.ietf.org/html/rfc7636)
 
-## Advanced Security for User-Initiated OAuth 2.0 Flows (day 3)
+## Advanced Security for User-Initiated OAuth 2.0 Flows
+
+Agenda: Advanced Security Extensions for OAuth 2.0 User-Initiated Flows
+
+- Overview of OAuth 2.0 security extensions—JAR, JWE, and PAR—to address vulnerabilities in user-initiated flows with advanced protective mechanisms.
+
+OAuth 2.0 User-Initiated Flows: Hacker Scenario and Authorization Request Risks
+
+- Discover a hacker scenario that exposes vulnerabilities in OAuth 2.0 user-initiated flows, including PKCE, and understand the risks of tampering with authorization request parameters.
+
+Understanding the JWT Secured Authorization Request (JAR) in OAuth 2.0
+
+- Learn how the JWT Secured Authorization Request (JAR) enhances OAuth 2.0 flows by securing authorization request parameters. Discover how JAR mitigates tampering risks and ensures integrity.
+
+The Limitation of JAR: Hacker Scenario and Security Challenges
+
+- Dive into the security challenges of the JWT Secured Authorization Request (JAR) in OAuth 2.0 flows. Learn how a hacker could exploit the lack of confidentiality in authorization requests and why this is a critical issue.
+
+Asymmetric Encryption Explained: Ensuring Confidentiality in OAuth 2.0
+
+- Discover how asymmetric encryption protects sensitive data in OAuth 2.0. Learn how public/private keys ensure confidentiality in communication and secure authorization flows.
+
+Enhancing OAuth 2.0 Security with JWE: Confidentiality in Authorization Requests
+
+- Learn how JWE (JSON Web Encryption) secures OAuth 2.0 authorization requests. Discover its role in protecting sensitive data, mitigating risks, and addressing security challenges.
+
+OAuth 2.0 Pushed Authorization Requests (PAR): Simplified and Secure
+
+- Discover how Pushed Authorization Requests (PAR) secures OAuth 2.0 authorization requests by eliminating URL-based vulnerabilities. Learn its steps, advantages, and integration with other security measures like JWT Secured Authorization Request (JAR).
+
+Combining OAuth 2.0 Security Extensions: PAR, JAR, and JWE
+
+- Learn how to enhance security by integrating PAR, JAR, and JWE. Explore step-by-step workflows that ensure integrity, authenticity, confidentiality, and address specific security challenges.
+
+OAuth 2.0 Security Extensions: Recap, Use Cases, and Decision Tree
+
+- Discover OAuth 2.0 security extensions like JWT Secured Authorization Request (JAR), JSON Web Encryption (JWE), and Pushed Authorization Request (PAR). Learn how to apply each extension using a decision tree based on security requirements, project needs, and compliance considerations.
+
+Advanced Security for User-Initiated OAuth 2.0 Flows
+
+- Test your understanding of advanced OAuth 2.0 security extensions, including JAR, JWE, and PAR. Learn how these flows address critical security challenges in user-initiated authorization flows, and master when to combine these mechanisms for maximum security.
 
 ## Understanding OAuth 2.0 ROPC Flow: Risks and When to Use It
 
+Exploring the OAuth 2.0 ROPC Flow: Use Cases and Risks
+
+- Discover the OAuth 2.0 ROPC flow, designed for rare cases where user redirection isn't feasible. Understand its workings, associated risks, and why it's deprecated in OAuth 2.1. Learn when and how to use it securely.
+
+Resource Owner Password Credentials (ROPC) Flow
+
 ## OAuth 2.0 Machine-to-Machine (M2M)
 
-Mastering the Client Credentials Flow
+Mastering the OAuth 2.0 Client Credentials Flow: Use Cases and Decision Tree
+
+- Explore the OAuth 2.0 Client Credentials Flow in detail. Learn its implementation, real-world use cases, and how to decide when to use it with a practical decision tree guide.
+
+Mastering OAuth 2.0 Client Credentials Flow
+
+- Test your understanding of the OAuth 2.0 Client Credentials Flow. Learn its mechanics, use cases, and decision-making process to determine when this flow is the right choice for machine-to-machine communication.
 
 ## Mastering OAuth 2.0 Device Code Flow for Limited-Input-Devices
 
+Understanding the OAuth 2.0 Device Code Flow: A Step-by-Step Guide
+
+- Master the OAuth 2.0 Device Code Flow with this detailed guide. Learn to enable secure user authorization for devices with limited input, like smart TVs and IoT devices, step by step.
+- [Try: OAuth 2.0 Device Code Flow](https://www.oauth.com/playground/device-code.html)
+
+1. **Request a Device Code**
+
+The first step of the Device flow is to request a device code. This is done with a simple POST request to the device code endpoint.
+
+```sh
+POST https://example.okta.com/device
+
+client_id=https://www.oauth.com/playground/
+```
+
+2. **Tell the User to Enter the Code**
+
+The response from the server includes the device code, a code to display to the user, and the URL the user should visit to enter the code.
+
+```json
+{
+  "device_code": "NGU5OWFiNjQ5YmQwNGY3YTdmZTEyNzQ3YzQ1YSA",
+  "user_code": "BDWD-HQPK",
+  "verification_uri": "https://example.okta.com/device",
+  "interval": 5,
+  "expires_in": 1800
+}
+```
+
+> ***Note:*** This is just an example URL, since the Okta API does not implement the Device Flow. You can use the [Google API](https://developers.google.com/identity/protocols/OAuth2ForDevices) if you want to try this against a real service.
+
+You'll need to present the `verification_uri` and `user_code` to the user and instruct them to enter the code at the URL. How you do this depends on the capabilities of the device. For example, on a smart TV, it is relatively easy to display both items and instructional text on the screen. On a device with a more limited display capability, it may be more challenging.
+
+![Device code display](./imagens/Device-Code-Display.jpg)
+
+***Device code display***
+
+3. **Poll the Token Endpoint**
+
+While you wait for the user to visit the URL, sign in to their account, and approve the request, you'll need to poll the token endpoint with the device code until an access token or error is returned.
+
+```sh
+POST https://example.okta.com/token
+
+grant_type=urn:ietf:params:oauth:grant-type:device_code
+&client_id=https://www.oauth.com/playground/
+&device_code=NGU5OWFiNjQ5YmQwNGY3YTdmZTEyNzQ3YzQ1YSA
+```
+
+Before the user has finished signing in and approving the request, the authorization server will return a status indicating the authorization is still pending.
+
+```json
+HTTP/1.1 400 Bad Request
+
+{
+  "error": "authorization_pending"
+}
+Poll Again
+```
+
+When the user approves the request, the token endpoint will respond with the access token.
+
+```json
+HTTP/1.1 200 OK
+
+{
+  "token_type": "Bearer",
+  "access_token": "RsT5OjbzRn430zqMLgV3Ia",
+  "expires_in": 3600,
+  "refresh_token": "b7a3fac6b10e13bb3a276c2aab35e97298a060e0ede5b43ed1f720a8"
+}
+```
+
+Now the device can use this access token to make API requests on behalf of the user.
+
+***You did it!***
+
+Understanding the OAuth 2.0 Device Code Flow
+
+- Test your understanding of the OAuth 2.0 Device Code Flow, its mechanics, and use cases. Learn how to securely implement authorization on devices with limited input capabilities.
+
 ## Integrating External Identity Providers with OAuth 2.0 using JWT and SAML (day 4)
+
+### <<<  TÔ AQUI  >>>
+
+Introduction to OAuth 2.0 Assertion Flows: JWT and SAML
+
+- Discover how OAuth 2.0 assertion flows enable seamless integration with external identity providers. Learn the basics of JWT and SAML assertion flows for obtaining tokens without re-authentication.
+
+Exploring the OAuth 2.0 JWT Bearer Assertion Flow
+
+- Learn how the OAuth 2.0 JWT Bearer Assertion Flow works. Understand its use of trusted identity providers, JWT tokens, and secure access token exchanges via the token endpoint.
+
+Understanding the OAuth 2.0 SAML Bearer Assertion Flow
+
+- Explore the OAuth 2.0 SAML Bearer Assertion Flow. Learn how SAML assertions integrate with OAuth 2.0 to exchange access tokens securely, enabling seamless authentication via trusted identity providers.
+
+OAuth 2.0 Assertion Flows: Use Cases for JWT and SAML Integration
+
+- Learn when and how to use OAuth 2.0 assertion flows with JWT and SAML. Explore practical use cases like partner integration, compliance-driven domains, legacy system bridging, and multi-organization collaboration.
+
+Integrating External Identity Providers with OAuth 2.0: JWT and SAML Assertions
+
+- Test your understanding of OAuth 2.0 assertion flows with JWT and SAML. Learn how these flows enable seamless integration with identity providers, their mechanics, and key use cases.
 
 ## OAuth 2.0 Advanced Client Authentication Methods
 
+Introduction to OAuth 2.0 Advanced Client Authentication Methods
+
+- Discover advanced OAuth 2.0 client authentication methods, including Client Secret, JWT Bearer, SAML Bearer, and X.509 Certificates, and their role in securing confidential clients.
+
+Client Authentication in OAuth 2.0 Using Client Secret
+
+- Learn the simplest OAuth 2.0 client authentication method—Client Secret. Explore how confidential clients authenticate with the authorization server using securely stored credentials.
+
+Client Authentication in OAuth 2.0 Using JWT Bearer Assertion
+
+- Explore JWT Bearer Assertion for OAuth 2.0 client authentication. Learn how symmetric and asymmetric signing secure clients, and understand integration with identity providers for enhanced security.
+
+Client Authentication in OAuth 2.0 Using SAML Bearer Assertion
+
+- Learn how OAuth 2.0 client authentication works using SAML Bearer Assertions. Discover the process, trust setup with Identity Providers, and the role of signed XML assertions in secure client authentication.
+
+OAuth 2.0 Client Authentication with mTLS and X.509 Basics (Part 1)
+
+- Discover the foundational concepts of mutual TLS (mTLS) and X.509 certificates in OAuth 2.0. Learn how the chain of trust, certificate authorities, and key pairs enable secure client authentication.
+
+OAuth 2.0 Client Authentication Using mTLS and X.509 (Part 2)
+
+- Explore how mutual TLS (mTLS) enables secure client authentication in OAuth 2.0. Learn the role of keystores, truststores, and X.509 certificates during the TLS handshake for obtaining access tokens.
+
+Choosing the Right OAuth 2.0 Client Authentication Method: Recap and Use Cases
+
+- Learn to evaluate and select the most suitable OAuth 2.0 client authentication method—Client Secret, JWT Bearer, SAML Bearer, or X.509 mTLS—based on security, complexity, and use case.
+
+Evaluating OAuth 2.0 Advanced Client Authentication Methods
+
+- Evaluate your knowledge of OAuth 2.0 client authentication methods, including client secret, JWT and SAML bearer assertions, and X.509 certificates with mTLS. Understand their security features and best use cases.
+
 ## OAuth 2.0 Advanced Token Security Mechanisms
 
-X.509 mTLS and DPoP.
+Introduction to Advanced OAuth 2.0 Token Security: X.509 mTLS and DPoP
+
+- Explore how OAuth 2.0 tackles token misuse with advanced security mechanisms, including X.509 mTLS and DPoP. Learn how these methods ensure token binding to prevent unauthorized access.
+
+OAuth 2.0 Access Token Binding with X.509 mTLS (Mutual TLS)
+
+- Learn how OAuth 2.0 X.509 Mutual TLS (mTLS) binds access tokens to client certificates, ensuring secure and authorized token usage. Explore mTLS flows and protection against token misuse.
+
+OAuth 2.0 Access Token Binding with DPoP (Proof-of-Possession)
+
+- Explore how OAuth 2.0 Demonstration of Proof-of-Possession (DPoP) ensures secure access token usage at the application layer. Learn about DPoP proofs, JWT structures, and robust token-binding mechanisms.
+
+OAuth 2.0 Advanced Token Security Mechanisms
+
+- Test your understanding of advanced token security in OAuth 2.0, including X.509 Mutual TLS (mTLS) and Demonstration of Proof-of-Possession (DPoP). Learn how tokens are securely bound to clients and prevent misuse in high-risk environments.
 
 ## That's all
 
