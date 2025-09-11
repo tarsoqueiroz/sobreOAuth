@@ -926,8 +926,6 @@ Understanding the OAuth 2.0 Device Code Flow
 
 ## Integrating External Identity Providers with OAuth 2.0 using JWT and SAML (day 4)
 
-### <<<  TÔ AQUI  >>>
-
 Introduction to OAuth 2.0 Assertion Flows: JWT and SAML
 
 - Discover how OAuth 2.0 assertion flows enable seamless integration with external identity providers. Learn the basics of JWT and SAML assertion flows for obtaining tokens without re-authentication.
